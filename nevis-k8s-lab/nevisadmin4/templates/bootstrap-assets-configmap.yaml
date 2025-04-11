@@ -1,0 +1,12 @@
+{{- if or .Values.bootstrap.nevisAdmin4.enabled (and .Values.gitea.enabled .Values.bootstrap.gitea.enabled) }}
+apiVersion: v1
+binaryData:
+  {{- range $path, $_ :=  .Files.Glob "bootstrap/assets/*" }}
+  {{ base $path }}: {{ $.Files.Get $path | b64enc }}
+  {{- end }}
+kind: ConfigMap
+metadata:
+  name: bootstrap-assets
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+{{- end }}

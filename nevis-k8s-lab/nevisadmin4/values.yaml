@@ -1,0 +1,510 @@
+# -- nginx settings, disable if nginx is already installed, the generated ingress will use the ingress class specified here
+nginx:
+  enabled: true
+  controller:
+    service:
+      externalTrafficPolicy: Local
+    admissionWebhooks:
+      enabled: false
+    ingressClassResource:
+      name: nginx
+      enabled: true
+    config:
+      annotation-value-word-blocklist: load_module,lua_package,_by_lua,location,root,proxy_pass,serviceaccount
+
+
+git:
+  # -- Git repository, can be either ssh or http
+  repositoryUrl: ""
+  # -- Makes it possible to use a different repository for each component namespace
+  repositoryUrlMap: {}
+    #test-ns: testrepourl
+    #prod-ns: prodrepourl
+  # -- Username used for http authentication. It's recommended to prepare a secret instead.
+  username: ""
+  # -- Password used for http authentication. It's recommended to prepare a secret instead.
+  password: ""
+  # -- DEPRECATED: Use `credentialSecret` instead. Secret containing the username and password for http authentication. Must have the "username" and "password" key.
+  httpCredentialSecret: ""
+  # -- DEPRECATED: Use `credentialSecret` instead. Secret containing the git credentials, to avoid having plain values in the values file. Must have "key", "key.pub", "known_hosts" key.
+  sshCredentialSecret: "helm-git-ssh"
+  # -- Secret containing the git credentials, to avoid having plain values in the values file. Must have "key", "key.pub", "known_hosts", "passphrase", "username", "password" secret keys. In case only http or ssh is used, the corresponding keys can be empty, but still has to exist in the secret.
+  credentialSecret: ""
+  # -- Private key passphrase
+  passphrase: ""
+  # -- Base64 git private key.
+  privateKey64: ""
+  # -- Base64 git public key.
+  publicKey64: ""
+  # -- Base64 known_hosts.
+  knownHosts64: ""
+
+
+database:
+  # -- Type of the database, supported values: mariadb, postgresql
+  type: "mariadb"
+  # -- Database host, example: mariadb29a7439e.mariadb.database.azure.com
+  host: ""
+  # -- Database port
+  port: "3306"
+  root:
+    # -- DEPRECATED: Use `preparedCredentialSecret` instead. Secret containing the username and password for the root user. Must have the "username" and "password" key.
+    credentialSecret: "helm-database-credential"
+    # -- Secret containing the username and password for the root user. Must have the "username" and "password" key. This secret has to be specified on the database pattern as the root credential secret. Has to contain the database host in case of an Azure MariaDB database. Must be prepared id advance.
+    # -- When using this value, root-creds secret will only be created in the namespace where nevisAdmin4 resides. Adjust the `Root Credential Namespace` in the Database patterns of nevisAdmin 4 before the migration to this value.
+    preparedCredentialSecret: ""
+    # -- Root username in plain value. It's recommended to prepare a secret instead.
+    username: ""
+    # -- Root password in plain value. It's recommended to prepare a secret instead.
+    password: ""
+
+image:
+  # -- Repository where the images will be pulled from
+  repository: ""
+  # -- Image prefix, nevis images will be pulled from [repository]/[imagePrefix]
+  imagePrefix: nevis-k8s
+  # -- Name of the secret containing the credentials, only necessary if a private repository is used.
+  imagePullSecretName: ""
+
+# -- By default, the permissions and accessory resources are set up in a way that it's only possible to deploy from nevisAdmin4 to the same namespace where the chart is installed.
+# -- Listing additional ones here, will make it so that nevisAdmin4 can deploy to these namespaces. The namespace itself has to exist already.
+additionalComponentNamespaces: [ ]
+  # --- dev
+  # --- test
+  # --- prod
+
+nevisAdmin4:
+  enabled: true
+
+  # -- Domain where nevisAdmin4 will be reachable
+  domain: ""
+
+  database:
+    # -- Name of the database
+    name: "nevisadmin4"
+    # -- Database user by nevisAdmin4
+    applicationUser: admin4appuser
+    # -- Database user used for the migration of the database for nevisAdmin4.
+    schemaUser: admin4schemauser
+    # -- Database app user password.
+    applicationUserPassword: ""
+    # -- Database schema user password.
+    schemaUserPassword: ""
+    # -- Disable ssl if it's not supported by the database
+    enableSSL: true
+    # -- Secret containing schema and application user credentials to avoid plain values in the values file. Must have the "applicationUser", "applicationUserPassword", "schemaUser", "schemaUserPassword" key. Must be prepared is advance.
+    credentialSecret: ""
+    # -- Values for the dbschema job
+    job:
+      # -- dbschema job will be deleted automatically
+      cleanupEnabled: true
+      ttlSecondsAfterFinished: 1200
+      # --  Labels to put onto the migration job.
+      labels: { }
+      # --  Labels to put onto the migration job pod.
+      podLabels: { }
+      # -- Annotations to put onto the migration job.
+      annotations: { }
+      # -- Annotations to put onto the migration job pod.
+      podAnnotations: { }
+
+  # -- Secret containing the initial password of nevisAdmin4 to avoid plain values in the values file. Must have the "password" key. If credentialSecret and password is not given it will be autogenerated. Must be prepared id advance.
+  credentialSecret: ""
+  # -- Initial password of nevisAdmin4. If credentialSecret and password is not given it will be autogenerated.
+  password: ""
+
+  tls:
+    # -- Enable https for nevisadmin4, it will only affect the traffic between nginc and nevisadmin4
+    enabled: false
+    # -- Keystore file to use, will be used instead of the prepared secret or base64 if the file is available in the chart folder.
+    keystore: keystore.p12
+    # -- Base64 keystore file.
+    keystore64: ""
+    # -- Keystore passphrase
+    passphrase: ""
+    # -- Keystore type
+    keystoreType: pkcs12
+    # -- The key alias
+    keyAlias: nevisadmin
+    # -- what port to use if https is enabled
+    port: 8443
+    # -- Secret containing the tls keystore, to avoid plain values and using a local files. Must be prepared in advance. Must have the "passphrase" and the value for `tls.keystore` as a secret key.
+    keystoreSecret: ""
+
+  # -- Default port of nevisAdmin4
+  port: 9080
+  # -- Management port, this is where the health checks will be available
+  managementPort: 9889
+  # -- Specify the storage class for the nevisAdmin4 persistent volume
+  storageClass: ""
+  # -- Specify the cert-manager issuer for the nevisAdmin4 ingress
+  certManagerIssuer: letsencrypt-prod
+  # -- cert-manager annotation to put on the ingress
+  ingressIssuerAnnotation: cert-manager.io/issuer
+
+  otel:
+    # -- Enable OpenTelemetry forwarding
+    enabled: false
+    # -- OpenTelemetry url
+    url: ""
+    # -- OpenTelemetry protocol
+    protocol: http/protobuf
+
+
+  productAnalytics:
+    # -- Enable product analytics
+    enabled: false
+    prometheus:
+      # -- base url of the Prometheus instance
+      url: ""
+      # -- Username for Prometheus in case basic authentication is enabled
+      username: ""
+      # -- Password for Prometheus in case basic authentication is enabled
+      password: ""
+      # -- Credential secret for Prometheus in case basic authentication is enabled. Has to have "password" and "username" keys.
+      credentialSecret: ""
+
+  image:
+    # -- Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+    # -- Overrides the dbschema image tag whose default is the chart appVersion.
+    migrationTag: ""
+
+  saml:
+    # -- Enable SAML login
+    enabled: false
+    # -- SAML attributes, by default it is set up for azure AD
+    attribute:
+      user-key: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress
+      group-keys: http://schemas.microsoft.com/ws/2008/06/identity/claims/role
+      email: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress
+      first-name: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname
+      last-name: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname
+    idp:
+      metadataUri:
+    # -- Secret containing the sam key and certificate to avoid using local files. Must be prepared advance. Must have saml.key and saml.crt key.
+    keySecret: ""
+    # -- Base64 saml.crt.
+    certificate64: ""
+    # -- Base64 saml.key.
+    privateKey64: ""
+
+  # --  ldap attributes for the nevisadmin4.yml
+  ldap:
+    # -- Enable ldap
+    enabled: false
+    # -- ldap user block
+    user: {}
+    # -- ldap context block
+    context: {}
+    # -- ldap search block
+    search: {}
+    # -- pkcs12 truststore in base64 format
+    truststore64: ""
+    # -- truststore passphrase
+    truststorePassphrase: ""
+
+  # --  cors attributes
+  cors: {}
+
+  # -- Commma seperated list of spring profiles to use, overrides all defaults
+  springProfiles: ""
+
+  # -- low level configuration options
+  config:
+    # -- Content of nevisadmin4.yml configuration file
+    nevisadmin4: {}
+    # -- Content of logback.xml configuration file as multiline string
+    logback: ""
+    # -- Content of env.conf configuration file as multiline string
+    env: ""
+
+  # -- Specify a custom livenessProbe.
+  livenessProbe: {}
+
+  # -- Specify a custom readinessProbe.
+  readinessProbe: {}
+
+  # -- Additional labels to be put on the nevisAdmin4 StatefulSet.
+  labels: {}
+  # -- Additional labels to be put on the nevisAdmin4 pods.
+  podLabels: {}
+  # -- Additional annotations to be put on the nevisAdmin4 pods.
+  podAnnotations: {}
+  # -- Additional annotations to be put on the nevisAdmin4 StatefulSet.
+  annotations: {}
+
+  # -- Additional environment variables that will be added to the nevisAdmin4 container
+  extraEnvs: []
+  #  - name: FOO
+  #    value: FOO
+
+  # -- Security context for the nevisAdmin4 pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    fsGroup: 2000
+    # Should be used if SeccompDefault is disabled on the Kubernetes cluster
+    #seccompProfile:
+    #  type: RuntimeDefault
+
+  # -- Security context for the nevisAdmin4 pod containers.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+  ingress:
+    enabled: true
+    # -- Annotations to be put on the nevisAdmin4 Ingress.
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: 100m
+
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 4500Mi
+    requests:
+      cpu: 1000m
+      memory: 1500Mi
+
+  migrationResources:
+    requests:
+      cpu: 20m
+      memory: 200Mi
+    limits:
+      cpu: 1000m
+      memory: 1000Mi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # -- The env.conf, nevisadmin4.yml and logback.xml can be overriden by placing tha file with the same name besides the values.yaml
+  configOverrideEnabled: false
+
+certManager:
+  # -- Creates a Let's encrypt issuer to every component namespace
+  createLetsEncryptIssuer: true
+  # -- Create a CA Issuer to the main release namespace, it also creates a self-signed issuer to prepare the root CA
+  createCAIssuer: true
+
+nevisOperator:
+  # -- These values will be used for creating the internal certicates with cert-manager
+  csr:
+    country: "CH"
+    province: "K8S"
+    locality: "K8S"
+    organization: "K8S"
+    organizational-unit: "K8S"
+    email-address: "noreply@local.domain"
+
+  image:
+    # -- Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  # -- Name of the internal issuer used to create the certificate for internal communication between the components
+  internalIssuer: "ca-issuer"
+  # -- Namespace of the internal issuer used to create the certificate for internal communication between the components
+  internalIssuerNamespace: ""
+  # -- Name of the CA secret of the internal issuer
+  internalIssuerCASecret: "ca-root-secret"
+  # -- Namespace of the CA secret, defaults to the release namespace
+  internalIssuerCASecretNamespace: ""
+  # -- Certificate duration of the internal certificates created with cert-manager
+  certificateDuration: 8760h
+  # -- cert-manager annotation to put on the ingress
+  ingressIssuerAnnotation: cert-manager.io/issuer
+  # -- Name of the issuer that will be used for the generated ingresses
+  ingressIssuer: letsencrypt-prod
+
+  # -- Sets the default imagePullPolicy for the deployed components by nevisAdmin 4
+  defaultImagePullPolicy: ""
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 96Mi
+
+  # -- Security context for the nevisOperator pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    # Should be used if SeccompDefault is disabled on the Kubernetes cluster
+    #seccompProfile:
+    #  type: RuntimeDefault
+
+  # -- Security context for the nevisOperator pod containers.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ "ALL" ]
+
+  restrictNamespaces:
+    # -- By default, nevisOperator only has access to the namespace where it resides, and the namespaces from the additionalComponentNamespaces
+    enabled: true
+    # -- Add additional namespaces the nevisOperator has access to, this is useful in case a secret or some other resource is referenced in the configuration.
+    # -- If the goal is to deploy to these namespace use the additionalComponentNamespaces value instead
+    additionalNamespaces: []
+    # --  - namespace1
+    # --  - namespace2
+
+  # -- Enable leader election for nevisOperator, this make it possible to run with multiple replicas
+  enableLeaderElection: true
+  replicas: 1
+
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
+  # -- Labels to put onto the Deployment.
+  labels: {}
+  # -- Labels to put onto the pods.
+  podLabels: {}
+  # -- Annotations to put onto the Deployment.
+  annotations: { }
+  # -- Annotations to put onto the pods.
+  podAnnotations: { }
+
+# --  Labels that will put onto every pod created by the chart
+podLabels: { }
+
+serviceAccount:
+  # -- Enable service account creation, if disabled the default service account will be used
+  create: true
+  # -- Override the name of the created service account for nevisadmin4
+  name: ""
+  # -- Override the name of the created service account for nevisoperator
+  nevisOperatorName: ""
+
+# --  Supports importing initial projects and inventories into nevisAdmin 4 and creating a repository in gitea.
+bootstrap:
+  image:
+    version: 1.3.0
+  nevisAdmin4:
+    enabled: false
+  gitea:
+    enabled: false
+  # --  Labels to put onto the bootstrap job.
+  labels: { }
+  # --  Labels to put onto the bootstrap job pod.
+  podLabels: { }
+  # -- Annotations to put onto the Job.
+  annotations: { }
+  # -- Annotations to put onto the pods.
+  podAnnotations: { }
+
+maria:
+  enabled: false
+  # -- Name of the mariadb deployment
+  fullnameOverride: mariadb
+  auth:
+    # -- Root password of mariadb
+    rootPassword: ""
+    # -- Name of the additional user created for mariadb
+    password: "nevis"
+    # -- Password of the additional user
+    username: ""
+  primary:
+    # -- Primary node configuration
+    configuration: |-
+      [mysqld]
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mariadb
+      plugin_dir=/opt/bitnami/mariadb/plugin
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      tmpdir=/opt/bitnami/mariadb/tmp
+      max_allowed_packet=16M
+      bind-address=*
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+      log-error=/opt/bitnami/mariadb/logs/mysqld.log
+      character-set-server=utf8mb4
+      slow_query_log=0
+      slow_query_log_file=/opt/bitnami/mariadb/logs/mysqld.log
+      long_query_time=10.0
+      max_connections=1200
+      connect_timeout=5
+      wait_timeout=600
+      transaction-isolation=READ-COMMITTED
+      lower_case_table_names=1
+      log_bin_trust_function_creators=1
+
+      [client]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      default-character-set=UTF8
+      plugin_dir=/opt/bitnami/mariadb/plugin
+
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+gitea:
+  statefulset:
+    env:
+      # Override the home directory of the git user since the default one
+      # (/var/lib/gitea/git) is not writable.
+      - name: HOME
+        value: /data/git
+  job:
+    labels: { }
+    # --  Labels to put onto the bootstrap job pod.
+    podLabels: { }
+    # -- Annotations to put onto the Job.
+    annotations: { }
+    # -- Annotations to put onto the pods.
+    podAnnotations: { }
+  enabled: false
+  # -- Name of the gitea deployment
+  fullnameOverride: gitea
+  image:
+    # -- Use rootless image
+    rootless: true
+  memcached:
+    enabled: false
+  mysql:
+    enabled: false
+  postgresql:
+    enabled: false
+  gitea:
+    config:
+      cache:
+        ENABLED: true
+        ADAPTER: memory
+        INTERVAL: 60
+        HOST: 127.0.0.1:9090
+      server:
+        # -- Root url of gitea
+        ROOT_URL: ""
+      database:
+        DB_TYPE: mysql
+        HOST: mariadb:3306
+        NAME: gitea
+        # -- Database user for gitea
+        USER: ""
+        # -- Database user password
+        PASSWD: ""
+        SCHEMA: gitea
+    admin:
+      # -- Gitea admin username
+      username: ""
+      # -- Gitea admin password
+      password: ""
+      email: "gitea@local.domain"
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$2
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: ""
+        paths:
+          - path: /gitea(/|$)(.*)
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: gitea-tls
+        hosts:
+          - ""
+    apiVersion: networking.k8s.io/v1

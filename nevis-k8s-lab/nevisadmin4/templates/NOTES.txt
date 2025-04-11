@@ -1,0 +1,7 @@
+{{- include "nevisadmin4.validateValues" . }}
+nevisAdmin4 will be shortly available at https://{{ .Values.nevisAdmin4.domain }}/nevisadmin
+Make sure {{ .Values.nevisAdmin4.domain }} is pointing to the IP of the nginx loadbalancer.
+
+Run the following command to get the nevisAdmin4 password:
+kubectl get secret nevisadmin4-env -n {{ .Release.Namespace }} -o jsonpath='{.data.adminpassword}' | base64 --decode
+

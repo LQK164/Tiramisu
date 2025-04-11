@@ -1,0 +1,284 @@
+{{ if (list nil true "true" | has .Values.nevisAdmin4.enabled) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    {{- with .Values.nevisAdmin4.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+    {{- with .Values.nevisAdmin4.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    component: nevisadmin4
+  name: nevisadmin4
+spec:
+  serviceName: nevisadmin4
+  selector:
+    matchLabels:
+      component: nevisadmin4
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/nevisadmin4-configmap.yaml") . | sha256sum }}
+        checksum/ssh: {{ include (print $.Template.BasePath "/nevisadmin4-git-secret.yaml") . | sha256sum }}
+        checksum/env: {{ include (print $.Template.BasePath "/nevisadmin4-env-secret.yaml") . | sha256sum }}
+        {{- if .Values.nevisAdmin4.saml.enabled }}
+        checksum/saml: {{ include (print $.Template.BasePath "/nevisadmin4-saml-secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.nevisAdmin4.ldap.enabled }}
+        checksum/ldap: {{ include (print $.Template.BasePath "/nevisadmin4-ldap-secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.nevisAdmin4.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        component: nevisadmin4
+        {{- include "nevisadmin4.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.nevisAdmin4.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "nevisadmin4.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.nevisAdmin4.podSecurityContext | nindent 8 }}
+      {{- if .Values.image.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.image.imagePullSecretName }}
+      {{- end }}
+      containers:
+        - env:
+            {{- with .Values.nevisAdmin4.extraEnvs }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.nevisAdmin4.springProfiles }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.nevisAdmin4.springProfiles }}
+            {{- else }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: jpa,health,{{ if eq .Values.database.type "postgresql" }}postgres{{ else }}mariadb{{ end }},{{ if .Values.nevisAdmin4.saml.enabled }}saml{{ else }}jwthmac{{ end }}
+            {{- end }}
+            - name: NEVISADMIN_ADMIN_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.nevisAdmin4.credentialSecret }}
+                  name: {{ .Values.nevisAdmin4.credentialSecret }}
+                  key: password
+                  {{- else }}
+                  name: nevisadmin4-env
+                  key: adminpassword
+                  {{- end }}
+            - name: NEVIS_DBUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.nevisAdmin4.database.credentialSecret }}
+                  name: {{ .Values.nevisAdmin4.database.credentialSecret }}
+                  key: applicationUserPassword
+                  {{- else }}
+                  name: nevisadmin4-env
+                  key: applicationuserpw
+                  {{- end }}
+            - name: NEVIS_GIT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.git.credentialSecret | default "nevisadmin4-git" }}
+                  key: username
+            - name: NEVIS_GIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.git.credentialSecret | default "nevisadmin4-git" }}
+                  key: password
+            - name: NEVIS_GIT_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.git.credentialSecret | default "nevisadmin4-git" }}
+                  key: passphrase
+            {{- if .Values.nevisAdmin4.tls.enabled }}
+            - name: NEVIS_KEYSTORE_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nevisAdmin4.tls.keystoreSecret | default "nevisadmin4-tls" }}
+                  key: passhprase
+            {{- end }}
+            {{- if .Values.nevisAdmin4.ldap.enabled }}
+            - name: NEVIS_LDAP_TRUSTSTORE_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: nevisadmin4-ldap
+                  key: passhprase
+            {{- end }}
+            {{- if or (and .Values.nevisAdmin4.productAnalytics.prometheus.username .Values.nevisAdmin4.productAnalytics.prometheus.password) .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret  }}
+            - name: PROMETHEUS_USERNAME
+              {{- if .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret }}
+                  key: username
+              {{- else }}
+              value: {{ .Values.nevisAdmin4.productAnalytics.prometheus.username }}
+              {{- end }}
+            - name: PROMETHEUS_PASSWORD
+              {{- if .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret }}
+                  key: password
+              {{- else }}
+              value: {{ .Values.nevisAdmin4.productAnalytics.prometheus.password }}
+              {{- end }}
+            {{- end }}
+          image: {{ .Values.image.repository }}/{{ .Values.image.imagePrefix }}/nevisadmin4:{{ .Values.nevisAdmin4.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: Always
+          name: nevisadmin4
+          securityContext:
+            {{- toYaml .Values.nevisAdmin4.containerSecurityContext | nindent 12 }}
+          livenessProbe:
+            {{- if .Values.nevisAdmin4.livenessProbe }}
+              {{- toYaml .Values.nevisAdmin4.livenessProbe | nindent 12 }}
+            {{- else }}
+            failureThreshold: 3
+            httpGet:
+              path: /health/liveness
+              port: {{ .Values.nevisAdmin4.managementPort | default 9089 }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 4
+            {{- end }}
+          readinessProbe:
+            {{- if .Values.nevisAdmin4.readinessProbe }}
+              {{- toYaml .Values.nevisAdmin4.readinessProbe | nindent 12 }}
+            {{- else }}
+            failureThreshold: 3
+            httpGet:
+              path: /health/readiness
+              port: {{ .Values.nevisAdmin4.managementPort | default 9089 }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 4
+            {{- end }}
+          ports:
+            - containerPort: {{ include "nevisadmin4.port" . }}
+          resources:
+            {{- toYaml .Values.nevisAdmin4.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.nevisAdmin4.tls.enabled }}
+            - mountPath: /var/opt/nevisadmin4/conf/tls
+              name: nevisadmin4-tls
+            {{- end }}
+            {{- if .Values.nevisAdmin4.saml.enabled }}
+            - mountPath: /var/opt/nevisadmin4/conf/saml
+              name: nevisadmin4-saml
+            {{- end }}
+            {{- if .Values.nevisAdmin4.ldap.enabled }}
+            - mountPath: /var/opt/nevisadmin4/conf/ldap
+              name: nevisadmin4-ldap
+            {{- end }}
+            - mountPath: /var/opt/nevisadmin4/conf
+              name: nevisadmin4-config
+            - mountPath: /var/opt/nevisadmin4/conf/git
+              name: nevisadmin4-git
+            - mountPath: /var/opt/nevisadmin4/secret
+              name: nevisadmin4-secret
+      initContainers:
+        - name: nevisadmin4-dbschema-wait
+          image: {{ .Values.image.repository }}/{{ .Values.image.imagePrefix }}/nevisadmin4-dbschema:{{ .Values.nevisAdmin4.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: Always
+          securityContext:
+            {{- toYaml .Values.nevisAdmin4.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.nevisAdmin4.resources | nindent 12 }}
+          env:
+            - name: NEVIS_DBSCHEMA_URL
+              value: {{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.nevisAdmin4.database.name }}
+            {{- if contains "mariadb.database.azure.com" .Values.database.host }}
+            - name: NEVIS_DBSCHEMA_HOSTNAME
+              value: {{ .Values.database.host }}
+            {{- end }}
+            {{- if eq .Values.database.type "postgresql" }}
+            - name: DB_DRIVER
+              value: postgresql
+            {{- end }}
+            - name: NEVIS_DBUSER_USER
+              {{- if .Values.nevisAdmin4.database.credentialSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nevisAdmin4.database.credentialSecret }}
+                  key: applicationUser
+              {{- else }}
+              value: {{ .Values.nevisAdmin4.database.applicationUser }}
+              {{- end }}
+            - name: NEVIS_DBUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.nevisAdmin4.database.credentialSecret }}
+                  name: {{ .Values.nevisAdmin4.database.credentialSecret }}
+                  key: applicationUserPassword
+                  {{- else }}
+                  name: nevisadmin4-env
+                  key: applicationuserpw
+                  {{- end }}
+            {{- if .Values.nevisAdmin4.database.enableSSL }}
+            - name: NEVIS_DBSCHEMA_USE_SSL
+              value: {{ .Values.nevisAdmin4.database.enableSSL | quote }}
+            {{- end }}
+          command:
+            - nevis-dbschema
+            - wait
+      volumes:
+        - name: nevisadmin4-config
+          configMap:
+            name: nevisadmin4-config
+            defaultMode: 0750
+        - name: nevisadmin4-git
+          secret:
+            secretName: {{ .Values.git.credentialSecret | default "nevisadmin4-git" }}
+            defaultMode: 0750
+        {{- if .Values.nevisAdmin4.tls.enabled }}
+        - name: nevisadmin4-tls
+          secret:
+            secretName: {{ .Values.nevisAdmin4.tls.keystoreSecret | default "nevisadmin4-tls" }}
+            defaultMode: 0750
+        {{- end }}
+        {{- if .Values.nevisAdmin4.saml.enabled }}
+        - name: nevisadmin4-saml
+          secret:
+            secretName: {{ .Values.nevisAdmin4.saml.keySecret | default "nevisadmin4-saml" }}
+            defaultMode: 0750
+        {{- end }}
+        {{- if .Values.nevisAdmin4.ldap.enabled }}
+        - name: nevisadmin4-ldap
+          secret:
+            secretName: nevisadmin4-ldap
+            defaultMode: 0750
+        {{- end }}
+      {{- with .Values.nevisAdmin4.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: nevisadmin4-secret
+      spec:
+        {{- if .Values.nevisAdmin4.storageClass }}
+        storageClassName: {{ .Values.nevisAdmin4.storageClass }}
+        {{- end }}
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+{{ end }}

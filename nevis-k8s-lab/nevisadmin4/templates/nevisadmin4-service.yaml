@@ -1,0 +1,15 @@
+{{ if (list nil true "true" | has .Values.nevisAdmin4.enabled) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: nevisadmin4
+  labels:
+    component: nevisadmin4
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: nevisadmin4
+      port: {{ include "nevisadmin4.port" . }}
+  selector:
+    component: nevisadmin4
+{{ end }}

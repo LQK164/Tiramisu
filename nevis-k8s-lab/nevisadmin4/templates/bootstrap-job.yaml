@@ -1,0 +1,142 @@
+{{- if or .Values.bootstrap.nevisAdmin4.enabled (and .Values.gitea.enabled .Values.bootstrap.gitea.enabled) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-{{ now | date "20060102150405" }}
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+    {{- with .Values.bootstrap.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    "helm.sh/hook": post-install
+    {{- with .Values.bootstrap.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  activeDeadlineSeconds: 300
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 1200
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.bootstrap.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nevisadmin4.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.bootstrap.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "nevisadmin4.serviceAccountName" . }}
+      volumes:
+        - name: nevisadmin4-git
+          secret:
+            secretName: {{ .Values.git.credentialSecret | default "nevisadmin4-git" }}
+            defaultMode: 0750
+        - name: bootstrap-config
+          configMap:
+            name: bootstrap-config
+            defaultMode: 0750
+        - name: bootstrap-assets
+          configMap:
+            name: bootstrap-assets
+            defaultMode: 0750
+        - emptyDir: {}
+          name: target
+      restartPolicy: Never
+      securityContext:
+        {{- toYaml .Values.nevisAdmin4.podSecurityContext | nindent 8 }}
+      {{- if .Values.image.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.image.imagePullSecretName }}
+      {{- end }}
+      containers:
+        {{- if and .Values.gitea.enabled .Values.bootstrap.gitea.enabled }}
+        - name: bootstrap-gitea
+          securityContext:
+            {{- toYaml .Values.nevisAdmin4.containerSecurityContext | nindent 12 }}
+          image: {{ .Values.image.repository }}/{{ .Values.image.imagePrefix }}/nevis-ubi-tools:{{ .Values.bootstrap.image.version }}
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: bootstrap-config
+              mountPath: bootstrap
+            - mountPath: bootstrap/keys
+              name: nevisadmin4-git
+          env:
+            - name: GIT_USER
+              value: {{ .Values.gitea.gitea.admin.username }}
+            - name: GIT_PASSWORD
+              value: {{ .Values.gitea.gitea.admin.password }}
+            - name: GIT_DOMAIN
+              value: http://gitea-http:3000
+          command: ["/bin/sh","-c"]
+          args: ["cd bootstrap && ./bootstrap-util.sh gitea-setup"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{- end }}
+        {{- if  .Values.bootstrap.nevisAdmin4.enabled }}
+        - name: bootstrap-admin
+          securityContext:
+            {{- toYaml .Values.nevisAdmin4.containerSecurityContext | nindent 12 }}
+          image: {{ .Values.image.repository }}/{{ .Values.image.imagePrefix }}/nevis-ubi-tools:{{ .Values.bootstrap.image.version }}
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: target
+              name: target
+            - name: bootstrap-config
+              mountPath: bootstrap
+            - name: bootstrap-assets
+              mountPath: bootstrap/assets
+          env:
+            - name: NEVISADMIN4_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.nevisAdmin4.credentialSecret }}
+                  name: {{ .Values.nevisAdmin4.credentialSecret }}
+                  key: password
+                  {{- else }}
+                  name: nevisadmin4-env
+                  key: adminpassword
+                  {{- end }}
+            - name: GIT_URL
+              value: {{ .Values.git.repositoryUrl }}
+            - name: IMPORT_PROJECTS
+              value: "true"
+            - name: PROJECT_ARRAY
+              value: "[\"SAML\",\"SINGLE\",\"TEMPLATE\"]"
+            - name: DOMAIN
+              value: http{{ if .Values.nevisAdmin4.tls.enabled }}s{{ end }}://nevisadmin4:{{ include "nevisadmin4.port" . }}
+            - name: PROXY_HOST
+              value: {{ .Values.nevisAdmin4.domain }}
+            - name: DEPLOYMENT_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: DB_SERVER
+              value: {{ .Values.maria.fullnameOverride }}
+            - name: AZURE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nevisadmin4.serviceAccountName" . }}-sa-secret
+                  key: token
+          command: ["/bin/sh","-c"]
+          args: ["cd bootstrap && ./bootstrap-util.sh import-projects"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{- end }}
+      {{- with .Values.nevisAdmin4.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

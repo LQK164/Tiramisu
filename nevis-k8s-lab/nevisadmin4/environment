@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Initial password of nevisAdmin 4
+export NEVISADMIN_PASSWORD="sh0wMEtheMONEY!"
+# The container registry of the Kubernetes cluster, for example: nevis.azurecr.io
+export CONTAINER_REGISTRY=124355661804.dkr.ecr.ap-southeast-1.amazonaws.com
+# The namespace where the helm chart will be installed
+export RELEASE_NAMESPACE=nevisadmin4
+# The name of the Helm release, for example nevisadmin4-prod
+export RELEASE_NAME=nevisadmin4-lab
+# Database host of the MariaDB database
+export DATABASE_HOST=nevis-k8s-db.cr8ywueei8zo.ap-southeast-1.rds.amazonaws.com
+# The root database user for the mariadb database, for example: root. If you are using an Azure database, do not include the host in the username.
+export DB_ROOT_USER=dbroot
+# The root database password for the mariadb database.
+export DB_ROOT_PASSWORD="sh0wMEtheMONEY!"
+# Password of the nevisAdmin 4 schema user which will be created during the installation
+export DB_NEVISADMIN_SCHEMA_USER_PASSWORD="sh0wMEtheMONEY!"
+# Password of the nevisAdmin 4 app user which will be created during the installation
+export DB_NEVISADMIN_APP_USER_PASSWORD="sh0wMEtheMONEY!"
+# URL of the Git repository to be used by nevisAdmin4.
+export GIT_REPOSITORY_URL=git@github.com:nghiatv-adn/nevis-k8s-lab.git
+# Domain where nevisAdmin4 will be available. Make sure to point the domain to the IP of the nginx LoadBalancer after the installation is done. For example: test.westeurope.cloudapp.azure.com
+export DOMAIN=nevis-k8s-alb-1331280985.ap-southeast-1.elb.amazonaws.com
+# For the temporary credentials, click the download button for one of the Docker images at https://portal.nevis.net/portal/secure/releases/lts-202405
+export CLOUDSMITH_PASSWORD=KAPGP8LiMgK4qKRi

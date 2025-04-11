@@ -1,0 +1,43 @@
+{{ if (list nil true "true" | has .Values.nevisAdmin4.enabled) }}
+{{ if .Values.nevisAdmin4.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    {{- if   .Values.nevisAdmin4.ingressIssuerAnnotation }}
+    {{ .Values.nevisAdmin4.ingressIssuerAnnotation }}: {{ .Values.nevisAdmin4.certManagerIssuer | default "letsencrypt-prod" }}
+    {{- end }}
+    {{- if not .Values.nginx.controller.ingressClassResource.enabled }}
+    kubernetes.io/ingress.class: {{ .Values.nginx.controller.ingressClass | quote }}
+    {{- end }}
+    {{- if .Values.nevisAdmin4.tls.enabled }}
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    {{- end }}
+    {{- with .Values.nevisAdmin4.ingress.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+    component: nevisadmin4
+  name: nevisadmin4
+spec:
+  {{- if .Values.nginx.controller.ingressClassResource.enabled }}
+  ingressClassName: {{ .Values.nginx.controller.ingressClassResource.name }}
+  {{- end }}
+  tls:
+    - hosts:
+        - {{ .Values.nevisAdmin4.domain }}
+      secretName: nevisadmin4-frontend-tls
+  rules:
+    - host: {{ .Values.nevisAdmin4.domain }}
+      http:
+        paths:
+          - path: /nevisadmin
+            pathType: "ImplementationSpecific"
+            backend:
+              service:
+                name: nevisadmin4
+                port:
+                  number: {{ include "nevisadmin4.port" . }}
+{{ end }}
+{{ end }}

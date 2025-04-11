@@ -1,0 +1,176 @@
+{{ if (list nil true "true" | has .Values.nevisAdmin4.enabled) }}
+apiVersion: v1
+data:
+  {{- if .Values.nevisAdmin4.config.env }}
+  env.conf: {{ .Values.nevisAdmin4.config.env | toYaml | indent 1 }}
+  {{- else }}
+  env.conf: |
+    {{- $globEnv:= .Files.Glob "env.conf" }}
+    {{- if and .Values.nevisAdmin4.configOverrideEnabled $globEnv }}
+      {{- $.Files.Get "env.conf" | nindent 4 }}
+    {{- else }}
+    JAVA_OPTS="\
+      -Dnevisadmin.base.dir=/var/opt/nevisadmin4/data \
+      -Dlogback.includeConfigFile=/var/opt/nevisadmin4/conf/logback.xml \
+      -Dlogdir=/var/opt/nevisadmin4/logs \
+      -XX:MaxRAMPercentage=80.0 \
+      {{- if and .Values.nevisAdmin4.otel.enabled }}
+      -javaagent:/opt/agent/opentelemetry-javaagent.jar \
+      -Dotel.javaagent.logging=application \
+      -Dotel.javaagent.configuration-file=/var/opt/nevisadmin4/conf/otel.properties \
+      -Dotel.resource.attributes=service.version={{ .Chart.AppVersion }},service.instance.id=$HOSTNAME-{{ .Release.Namespace }} \
+      -Dotel.javaagent.logging=application \
+      {{- end }}
+      -Dlogback.stdout.level=INFO"
+    {{- end }}
+  {{- end }}
+  {{- if .Values.nevisAdmin4.otel.enabled }}
+  otel.properties: |
+    otel.service.name=nevisadmin4-{{ .Release.Namespace }}
+    otel.exporter.otlp.protocol=http/protobuf
+    otel.exporter.otlp.traces.protocol={{ .Values.nevisAdmin4.otel.protocol }}
+    otel.exporter.otlp.traces.endpoint={{ .Values.nevisAdmin4.otel.url }}/v1/traces
+    otel.exporter.otlp.metrics.protocol={{ .Values.nevisAdmin4.otel.protocol }}
+    otel.exporter.otlp.metrics.endpoint={{ .Values.nevisAdmin4.otel.url }}/v1/metrics
+    otel.exporter.otlp.metrics.temporality.preference=cumulative
+    otel.exporter.otlp.logs.protocol={{ .Values.nevisAdmin4.otel.protocol }}
+    otel.exporter.otlp.logs.endpoint={{ .Values.nevisAdmin4.otel.url }}/v1/logs
+  {{- end }}
+  {{- if .Values.nevisAdmin4.config.logback }}
+  logback.xml: {{ .Values.nevisAdmin4.config.logback | toYaml | indent 1 }}
+  {{- else }}
+  logback.xml: |
+    {{- $globLogback:= .Files.Glob "logback.xml" }}
+    {{- if and .Values.nevisAdmin4.configOverrideEnabled $globLogback }}
+    {{- $.Files.Get "logback.xml" | nindent 4 }}
+    {{- else }}
+    <included>
+      <logger name="ch.nevis.admin.v4.core.project" level="info" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+      </logger>
+      <logger name="ch.nevis.admin.v4.app.command" level="info" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+      </logger>
+      <logger name="org.springframework.http" level="warn" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+      </logger>
+      <logger name="org.springframework.web" level="warn" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+      </logger>
+      <logger name="com.fasterxml.jackson" level="warn" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+      </logger>
+    </included>
+    {{- end }}
+  {{- end }}
+  {{- if .Values.nevisAdmin4.config.nevisadmin4 }}
+  nevisadmin4.yml: {{ .Values.nevisAdmin4.config.nevisadmin4 | toYaml | indent 1 }}
+  {{- else }}
+  nevisadmin4.yml: |
+    {{- $globAdminConf:= .Files.Glob "nevisadmin4.yml" }}
+    {{- if and .Values.nevisAdmin4.configOverrideEnabled $globAdminConf }}
+    {{- $.Files.Get "nevisadmin4.yml" | nindent 4 }}
+    {{- else }}
+    schemaVersion: 1
+    {{- if .Values.nevisAdmin4.tls.enabled}}
+    server:
+      port: {{ include "nevisadmin4.port" . }}
+      tls:
+        keystore: /var/opt/nevisadmin4/conf/tls/{{ .Values.nevisAdmin4.tls.keystore }}
+        keystore-passphrase: ${env:NEVIS_KEYSTORE_PASSPHRASE}
+        keystore-type: {{ .Values.nevisAdmin4.tls.keystoreType }}
+        key-alias: {{ .Values.nevisAdmin4.tls.keyAlias }}
+    {{- end }}
+    ### DB
+    db:
+      datasource:
+        url: jdbc:{{ if eq .Values.database.type "postgresql" }}postgresql{{ else }}mariadb{{ end }}://{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.nevisAdmin4.database.name }}{{- if .Values.nevisAdmin4.database.enableSSL -}}?sslMode=trust{{ end }}                                               # The mariadb nevisadmin4 URL
+        username: {{ .Values.nevisAdmin4.database.applicationUser }}{{ if contains "mariadb.database.azure.com" .Values.database.host }}@{{ .Values.database.host }}{{ end }}    # The mariadb nevisadmin4 application username
+        password: "${env:NEVIS_DBUSER_PASSWORD}"                   # The mariadb nevisadmin4 application user password
+    management:
+      endpoint:
+        health:
+          show-details: always
+      healthchecks:
+        enabled: true
+      server:
+        port: {{ .Values.nevisAdmin4.managementPort | default 9089 }}
+        tls:
+          enabled: false
+    {{- if .Values.nevisAdmin4.cors }}
+    cors:
+      {{- toYaml .Values.nevisAdmin4.cors | nindent 6 }}
+    {{- end }}
+    {{- if .Values.nevisAdmin4.ldap.enabled }}
+    authentication:
+      ldap:
+        {{- if .Values.nevisAdmin4.ldap.user }}
+        user:
+          {{- toYaml .Values.nevisAdmin4.ldap.user | nindent 10 }}
+        {{- end }}
+        {{- if .Values.nevisAdmin4.ldap.search }}
+        search:
+          {{- toYaml .Values.nevisAdmin4.ldap.search | nindent 10 }}
+        {{- end }}
+        {{- if .Values.nevisAdmin4.ldap.context }}
+        context:
+          {{- toYaml .Values.nevisAdmin4.ldap.context | nindent 10 }}
+        {{- end }}
+        {{- if .Values.nevisAdmin4.ldap.truststore64 }}
+        truststore: /var/opt/nevisadmin4/conf/ldap/truststore.p12
+        truststore-passphrase: ${env:NEVIS_LDAP_TRUSTSTORE_PASSPHRASE}
+        {{- end }}
+      realm:
+        ldap:
+          enabled: {{ .Values.nevisAdmin4.ldap.enabled }}
+    {{- end }}
+    nevisadmin:
+      {{- if .Values.nevisAdmin4.saml.enabled }}
+      saml:
+      {{- with .Values.nevisAdmin4.saml.attribute }}
+        attribute:
+        {{- toYaml . | nindent 10 }}
+      {{- end }}
+        idp:
+          metadata-uri: {{ .Values.nevisAdmin4.saml.idp.metadataUri }}
+        sp:
+          private-key: file:/var/opt/nevisadmin4/conf/saml/saml.key
+          certificate: file:/var/opt/nevisadmin4/conf/saml/saml.crt
+      {{- end }}
+      {{- if .Values.nevisAdmin4.productAnalytics.enabled }}
+      product-analytics:
+        prometheus:
+          url: {{ .Values.nevisAdmin4.productAnalytics.prometheus.url }}
+          {{- if or (and .Values.nevisAdmin4.productAnalytics.prometheus.username .Values.nevisAdmin4.productAnalytics.prometheus.password) .Values.nevisAdmin4.productAnalytics.prometheus.credentialSecret  }}
+          username: ${env:PROMETHEUS_USERNAME}
+          password: ${env:PROMETHEUS_PASSWORD}
+          {{- end }}
+      {{- end }}
+      secret:
+        file:
+          instance-random: /var/opt/nevisadmin4/secret/.r
+          instance-key: /var/opt/nevisadmin4/secret/.k
+      plugins:
+        install:
+          dir: /opt/nevisadmin4/libs                      # Location of the standard plugin libraries
+      git:
+        tls:
+          username: ${env:NEVIS_GIT_USERNAME}
+          password: ${env:NEVIS_GIT_PASSWORD}
+        ssh:
+          privatekey:
+            file: /var/opt/nevisadmin4/conf/git/key         # Path to the private key file that is used for the ssh connection between nevisadmin4 and the GIT repository management system.
+            passphrase: ${env:NEVIS_GIT_PASSPHRASE}
+    {{- end }}
+  {{- end }}
+kind: ConfigMap
+metadata:
+  name: nevisadmin4-config
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+{{ end }}

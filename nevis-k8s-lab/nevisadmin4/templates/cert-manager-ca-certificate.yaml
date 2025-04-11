@@ -1,0 +1,20 @@
+{{- if .Values.certManager.createCAIssuer }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-ca
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  duration: 175320h0m0s
+  commonName: selfsigned-ca
+  secretName: ca-root-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io
+{{- end }}

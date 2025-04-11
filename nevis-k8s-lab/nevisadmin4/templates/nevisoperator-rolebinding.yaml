@@ -1,0 +1,18 @@
+{{- range (append .Values.additionalComponentNamespaces .Release.Namespace) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nevisoperator-rolebinding
+  labels:
+    {{- include "nevisadmin4.labels" $ | nindent 4 }}
+  namespace: {{ . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nevisoperator-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nevisoperator.serviceAccountName" $ }}
+    namespace: {{ $.Release.Namespace }}
+---
+{{- end }}

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="assets">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/bootstrap/assets/project_SINGLE-FACTOR_20220201T132257Z.zip!/" />
+      <root url="jar://$PROJECT_DIR$/bootstrap/assets/project_SAML-SP-IDP_20220701T093249Z.zip!/" />
+      <root url="jar://$PROJECT_DIR$/bootstrap/assets/inventory_SAML-SP-IDP_20220701T093236Z.zip!/" />
+      <root url="jar://$PROJECT_DIR$/bootstrap/assets/inventory_SINGLE-FACTOR_20200324T105241Z.zip!/" />
+      <root url="jar://$PROJECT_DIR$/bootstrap/assets/inventory_TEMPLATE_20200324T105241Z.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

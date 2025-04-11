@@ -1,0 +1,155 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: nevistruststores.operator.nevis-security.ch
+spec:
+  group: operator.nevis-security.ch
+  names:
+    kind: NevisTrustStore
+    listKind: NevisTrustStoreList
+    plural: nevistruststores
+    singular: nevistruststore
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The secret containing the certificates
+      jsonPath: .status.secret.name
+      name: Secret
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: NevisTrustStore is the Schema for the nevistruststores API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NevisTrustStoreSpec defines the desired state of NevisTrustStore
+            properties:
+              extraCerts:
+                description: Additional trusted certificates
+                items:
+                  type: string
+                type: array
+              keystores:
+                description: KeyStores specifies the key stores which providing the
+                  certificates used in the trust store.
+                items:
+                  description: ElementReference provides a common way to reference
+                    elements in the API.
+                  properties:
+                    name:
+                      description: Name of the element being referenced
+                      type: string
+                    namespace:
+                      description: Namespace of the element being referenced
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+            required:
+            - keystores
+            type: object
+          status:
+            description: NevisTrustStoreStatus defines the observed state of NevisTrustStore
+            properties:
+              conditions:
+                description: Conditions contains the current state of the trust store.
+                items:
+                  description: NevisCondition is a condition proper to the status
+                    of a Nevis component.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human-readable message indicating the reason for
+                        the condition to be in this state
+                      type: string
+                    reason:
+                      description: Unique, one-word, CamelCase reason for the condition
+                        to be in this state
+                      type: string
+                    source:
+                      description: Source of the condition
+                      properties:
+                        container:
+                          type: string
+                        pod:
+                          type: string
+                      required:
+                      - container
+                      - pod
+                      type: object
+                    status:
+                      description: Status is the status of the condition. Can be True,
+                        False, Unknown.
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              secret:
+                description: Secret containing the certificates.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: 'If referring to a piece of an object instead of
+                      an entire object, this string should contain a valid JSON/Go
+                      field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within
+                      a pod, this would take on a value like: "spec.containers{name}"
+                      (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]"
+                      (container with index 2 in this pod). This syntax is chosen
+                      only to have some well-defined way of referencing a part of
+                      an object. TODO: this design is not final and this field is
+                      subject to change in the future.'
+                    type: string
+                  kind:
+                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    type: string
+                  namespace:
+                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                    type: string
+                  resourceVersion:
+                    description: 'Specific resourceVersion to which this reference
+                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                    type: string
+                  uid:
+                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

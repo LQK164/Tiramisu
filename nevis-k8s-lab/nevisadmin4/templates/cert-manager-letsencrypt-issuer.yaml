@@ -1,0 +1,27 @@
+{{- if .Values.certManager.createLetsEncryptIssuer }}
+{{- range (append .Values.additionalComponentNamespaces .Release.Namespace) }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+  namespace: {{ . }}
+  labels:
+    {{- include "nevisadmin4.labels" $ | nindent 4 }}
+spec:
+  acme:
+    # The ACME server URL
+    # This is the productive Let's Encrypt API, heavily rate limited
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address used for ACME registration
+    email: noreply@noreply.ch
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    # Enable the HTTP-01 challenge provider
+    solvers:
+      - http01:
+          ingress:
+            class: {{ $.Values.nginx.controller.ingressClassResource.name }}
+---
+{{ end }}
+{{- end }}

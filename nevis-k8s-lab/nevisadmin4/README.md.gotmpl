@@ -1,0 +1,81 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+## Prerequisites
+
+- Existing cert-manager installation
+    - Follow: https://cert-manager.io/docs/installation/
+- Existing MariaDB database
+    - The following values has to be configured for the database:
+    ```console
+    autocommit=0
+    transaction-isolation = READ-COMMITTED
+    log_bin_trust_function_creators = 1
+    lower_case_table_names = 1
+    character-set-server = utf8mb4
+    ```
+- Existing Git system
+- Nevis docker images already pushed to the container repository
+
+{{ template "chart.requirementsSection" . }}
+
+## Install Chart
+
+### Prepare secrets for installation
+First we prepare the required secrets to be used by the helm chart. This is done to avoid having plain secret values in the values.yaml.
+#### Generate key material
+```console
+ssh-keyscan [GIT_DOMAIN] > known_hosts
+ssh-keygen -t ecdsa -C "kubernetes" -m PEM -P "" -f key
+```
+#### Create ssh secret
+```console
+kubectl create namespace [RELEASE_NAMESPACE]
+kubectl create secret generic helm-git-ssh \
+--from-file=key=key \
+--from-file=key.pub=key.pub \
+--from-file=known_hosts=known_hosts\
+-n [RELEASE_NAMESPACE]
+```
+#### Create database credential secret
+```console
+kubectl create secret generic helm-database-credential \
+--from-literal=username=[DB_ROOT_USER] \
+--from-literal=password=[DB_ROOT_PASSWORD] \
+-n [RELEASE_NAMESPACE]
+```
+
+
+### Fill in the following required values in the `values.yaml`:
+   - `image.repository`: Container repository url
+   - `database.host`: Database host of the MariaDB database.
+   - `nevisAdmin4.domain`: Domain where nevisAdmin4 will be available. Make sure to point the domain to the IP of the nginx LoadBalancer after the installation is done.
+   - `git.repositoryUrl`: URL of the Git repository to be used by nevisAdmin4.
+
+For more configuration options see the values table below.
+
+### Install
+```console
+helm install [RELEASE_NAME] -n [RELEASE_NAMESPACE]
+```
+
+## Uninstall Chart
+
+```console
+helm uninstall [RELEASE_NAME] -n [RELEASE_NAMESPACE]
+```
+
+This removes all the Kubernetes components associated with the chart and deletes the release.
+
+
+{{ template "chart.valuesSection" . }}

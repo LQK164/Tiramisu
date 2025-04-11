@@ -1,0 +1,10 @@
+{{- if .Values.certManager.createCAIssuer }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+{{- end }}

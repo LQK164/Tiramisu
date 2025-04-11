@@ -1,0 +1,43 @@
+apiVersion: v1
+data:
+  nevisoperator.yml: |
+    image-prefix: {{ .Values.image.imagePrefix }}
+    container-registry: {{ .Values.image.repository }}
+    {{- if .Values.image.imagePullSecretName }}
+    container-registry-secret:
+      name: {{ .Values.image.imagePullSecretName }}
+    {{- end }}
+    key-temp-storage-path: /tmp/
+    csr-default-values:
+      {{- toYaml .Values.nevisOperator.csr | nindent 6 }}
+    debug-features: false
+    {{- if .Values.nevisOperator.restrictNamespaces.enabled }}
+    restrict-namespaces:
+    {{- range (concat (append .Values.additionalComponentNamespaces .Release.Namespace) .Values.nevisOperator.restrictNamespaces.additionalNamespaces) }}
+      - {{ . }}
+    {{- end }}
+    {{- end }}
+    key-management:
+      cert-manager:
+        issuer:
+          name: {{ .Values.nevisOperator.internalIssuer | default "ca-issuer" }}
+          namespace: {{ .Values.nevisOperator.internalIssuerNamespace | default .Release.Namespace }}
+        signing-ca-secret:
+          name: {{ .Values.nevisOperator.internalIssuerCASecret | default "ca-root-secret" }}
+          namespace: {{ .Values.nevisOperator.internalIssuerCASecretNamespace | default .Release.Namespace }}
+        certificate-duration: {{ .Values.nevisOperator.certificateDuration | default "8760h" }}
+    cluster-issuer-annotation: {{ .Values.nevisOperator.ingressIssuerAnnotation | default "cert-manager.io/issuer" }}
+    cluster-issuer: {{ .Values.nevisOperator.ingressIssuer }}
+    {{- if .Values.nginx.controller.ingressClassResource.enabled }}
+    ingress-class: {{ .Values.nginx.controller.ingressClassResource.name }}
+    {{- else }}
+    ingress-class: {{ .Values.nginx.controller.ingressClass }}
+    {{- end }}
+    {{- if .Values.nevisOperator.defaultImagePullPolicy }}
+    image-pull-policy: {{ .Values.nevisOperator.defaultImagePullPolicy }}
+    {{- end }}
+kind: ConfigMap
+metadata:
+  name: nevisoperator-operator-config
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}

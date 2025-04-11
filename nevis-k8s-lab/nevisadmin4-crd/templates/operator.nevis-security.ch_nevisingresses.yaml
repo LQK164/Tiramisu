@@ -1,0 +1,211 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: nevisingresses.operator.nevis-security.ch
+spec:
+  group: operator.nevis-security.ch
+  names:
+    kind: NevisIngress
+    listKind: NevisIngressList
+    plural: nevisingresses
+    singular: nevisingress
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Whether the reconcile is in progress
+      jsonPath: .status.conditions[?(@.type=="ReconcileActive")].status
+      name: ReconcileActive
+      type: string
+    - description: Whether the reconcile failed
+      jsonPath: .status.conditions[?(@.type=="ReconcileFailed")].status
+      name: ReconcileFailed
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: NevisIngress is the Schema for the nevisingresses API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NevisIngressSpec defines the desired state of NevisIngress
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: The additional annotations that should be added to the
+                  ingress
+                type: object
+              authTls:
+                description: Client certificate authentication settings
+                properties:
+                  errorPage:
+                    description: The URL/Page that user should be redirected in case
+                      of a Certificate Authentication Error
+                    type: string
+                  passCertificateToUpstream:
+                    description: Indicates if the received certificates should be
+                      passed or not to the upstream server
+                    type: boolean
+                  secret:
+                    description: Secret containing the CA
+                    properties:
+                      name:
+                        description: Name of the element being referenced
+                        type: string
+                      namespace:
+                        description: Namespace of the element being referenced
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  verifyClient:
+                    description: Enables verification of client certificates. on/off/optional/optional_no_ca
+                    type: string
+                  verifyDepth:
+                    description: The validation depth between the provided client
+                      certificate and the Certification Authority chain.
+                    type: integer
+                required:
+                - secret
+                - verifyClient
+                type: object
+              canary:
+                description: The canary routing information
+                properties:
+                  cookie:
+                    description: Canary cookie information
+                    type: string
+                  header:
+                    description: Canary header information
+                    type: string
+                  headerPattern:
+                    description: Canary header pattern information
+                    type: string
+                  headerValue:
+                    description: Canary header value information
+                    type: string
+                  percentage:
+                    description: Canary percentage information
+                    type: integer
+                  query:
+                    description: Enables setting the canary cookie based on the query
+                      parameter
+                    type: boolean
+                  weight:
+                    description: Canary weight information
+                    type: integer
+                type: object
+              hosts:
+                description: The hosts which through the service is accesible
+                items:
+                  properties:
+                    host:
+                      description: The host used to acess the service
+                      type: string
+                    protocol:
+                      description: The protocol that the host uses
+                      type: string
+                    serviceName:
+                      description: The service for which the entry is created
+                      type: string
+                    servicePort:
+                      description: The port that the service uses
+                      type: integer
+                  required:
+                  - host
+                  - protocol
+                  - serviceName
+                  - servicePort
+                  type: object
+                type: array
+              ingressClassName:
+                description: ingressClassName of the generated ingress resource
+                type: string
+              nodePort:
+                description: NodePort settings
+                properties:
+                  enabled:
+                    description: Enable the creation of a NodePort service instead
+                      of ClusterIP
+                    type: boolean
+                type: object
+              path:
+                description: 'Ingress path, default: "/"'
+                type: string
+              tlsSecrets:
+                additionalProperties:
+                  type: string
+                description: The tls secrets that should be used for the hosts
+                type: object
+              useTlsSettings:
+                description: disables and enables the tls settings in the ingress
+                type: boolean
+            required:
+            - hosts
+            type: object
+          status:
+            description: NevisIngressStatus defines the observed state of NevisIngress
+            properties:
+              conditions:
+                description: Conditions reflecting the current state of the ingress
+                items:
+                  description: NevisCondition is a condition proper to the status
+                    of a Nevis component.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human-readable message indicating the reason for
+                        the condition to be in this state
+                      type: string
+                    reason:
+                      description: Unique, one-word, CamelCase reason for the condition
+                        to be in this state
+                      type: string
+                    source:
+                      description: Source of the condition
+                      properties:
+                        container:
+                          type: string
+                        pod:
+                          type: string
+                      required:
+                      - container
+                      - pod
+                      type: object
+                    status:
+                      description: Status is the status of the condition. Can be True,
+                        False, Unknown.
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

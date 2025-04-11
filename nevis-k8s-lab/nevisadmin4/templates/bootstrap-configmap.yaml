@@ -1,0 +1,10 @@
+{{- if or .Values.bootstrap.nevisAdmin4.enabled (and .Values.gitea.enabled .Values.bootstrap.gitea.enabled) }}
+apiVersion: v1
+data:
+  {{- (.Files.Glob "bootstrap/*").AsConfig | nindent 2 }}
+kind: ConfigMap
+metadata:
+  name: bootstrap-config
+  labels:
+    {{- include "nevisadmin4.labels" . | nindent 4 }}
+{{- end }}

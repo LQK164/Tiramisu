@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 7.2411.0
+description: Installs the CRDs for nevisadmin4.
+name: nevisadmin4-crd
+type: application
+version: 7.2411.0

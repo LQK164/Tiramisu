@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+      {{- include "nevisadmin4.labels" . | nindent 4 }}
+      {{- with .Values.nevisOperator.labels }}
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+    control-plane: controller-manager
+  annotations:
+      {{- with .Values.nevisOperator.annotations }}
+        {{- toYaml . | nindent 4 }}
+      {{- end }}
+  name: nevisoperator-controller-manager
+spec:
+  replicas: {{ .Values.nevisOperator.replicas | default 1 }}
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/nevisoperator-configmap.yaml") . | sha256sum }}
+        {{- with .Values.nevisOperator.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nevisadmin4.labels" . | nindent 8 }}
+        control-plane: controller-manager
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.nevisOperator.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "nevisoperator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.nevisOperator.podSecurityContext | nindent 8 }}
+      {{- if .Values.image.imagePullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.image.imagePullSecretName }}
+      {{- end }}
+      containers:
+      - args:
+        - --metrics-addr=0.0.0.0:8080
+        {{- if .Values.nevisOperator.enableLeaderElection }}
+        - --enable-leader-election
+        {{- end }}
+        command:
+        - /manager
+        image: {{ .Values.image.repository }}/{{ .Values.image.imagePrefix }}/nevisoperator:{{ include "nevisadmin4.operatorVersion" . }}
+        imagePullPolicy: Always
+        name: manager
+        securityContext:
+          {{- toYaml .Values.nevisOperator.containerSecurityContext | nindent 12 }}
+        ports:
+          - containerPort: 8080
+            name: metrics
+        resources:
+          {{- toYaml .Values.nevisOperator.resources | nindent 12 }}
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-volume
+        - mountPath: /var/opt/nevisoperator/default/conf/nevisoperator.yml
+          name: config-volume
+          subPath: nevisoperator.yml
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+      - configMap:
+          name: nevisoperator-operator-config
+        name: config-volume
+      {{- with .Values.nevisAdmin4.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nevisAdmin4.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
